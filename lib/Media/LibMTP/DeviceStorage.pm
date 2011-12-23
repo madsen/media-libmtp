@@ -48,6 +48,7 @@ has id => (
   is   => 'ro',
   isa  => uint32_t,
 );
+*storage_id = \&id;             # alias
 
 has StorageType => (
   is   => 'ro',

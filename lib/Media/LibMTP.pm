@@ -67,6 +67,14 @@ has _tracks => (
 );
 
 #=====================================================================
+sub __storage_id
+{
+  my $source = shift;
+
+  (blessed($source) ? $source->storage_id : $source) // 0;
+} # end __storage_id
+
+#=====================================================================
 sub connect
 {
   my ($class, %criteria) = @_;
@@ -138,7 +146,7 @@ sub _throw_device_error
 } # end _throw_device_error
 #---------------------------------------------------------------------
 
-sub get_folder
+sub _find_folder
 {
   my ($self, $path, %param) = @_;
 
@@ -160,20 +168,66 @@ sub get_folder
     $folder = $parent->child;
   } # end if not starting at root
 
-  require Media::LibMTP::Folder;
+  my $result;
 
   while (1) {
     while ($folder->name ne $names[0]) {
-      $folder = $folder->sibling or return undef;
+      $folder = $folder->sibling or return ($result, \@names);
     }
     shift @names;
 
-    return Media::LibMTP::Folder->new({ _api => $folder, _device => $self })
-        unless @names;
+    return ($folder, \@names) unless @names;
 
-    $folder = $folder->child or return undef;
+    $result = $folder;
+    $folder = $folder->child or return ($result, \@names);
   } # end forever
+} # end _find_folder
+
+#---------------------------------------------------------------------
+
+sub get_folder
+{
+  my $self = shift;
+  my ($folder, $names) = $self->_find_folder(@_);
+
+  return undef unless $folder and not @$names;
+
+  require Media::LibMTP::Folder;
+
+  Media::LibMTP::Folder->new({ _api => $folder, _device => $self });
 } # end get_folder
+#---------------------------------------------------------------------
+
+sub create_path
+{
+  my $self = shift;
+  my ($path, %param) = @_;
+  my ($folder, $names) = $self->_find_folder(@_);
+
+  return undef if $folder and not @$names; # Path exists
+
+  my $storage_id = __storage_id($folder // $param{storage});
+  my $parent_id  = $folder ? $folder->folder_id : 0;
+
+  $self->_clear_folders;
+
+  while (@$names) {
+    $parent_id = $device->Create_Folder(
+      shift @$names, $parent_id, $storage_id
+    ) or $self->_throw_device_error;
+  }
+
+  # find the newly-created folder:
+  $folder = $self->_folders->Find_Folder($parent_id)
+      or Media::LibMTP::Error->throw({
+        error_stack => [[ LIBMTP_ERROR_GENERAL,
+                          "Created folder $path, but can't find it" ]]
+      });
+
+  require Media::LibMTP::Folder;
+
+  Media::LibMTP::Folder->new({ _api => $folder, _device => $self });
+} # end create_path
 #---------------------------------------------------------------------
 
 sub get_storage
