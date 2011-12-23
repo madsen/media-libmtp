@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------
-package Media::LibMTP::Album;
+package Media::LibMTP::AlbumInfo;
 #
 # Copyright 2011 Christopher J. Madsen
 #
