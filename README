@@ -1,7 +1,10 @@
 Media-LibMTP version {{$version}}, released {{$date}}
 
 
-This module {{ die "needs a description (README.md too)" }}.
+This module helps you transfer files to or from a portable media
+player using the Media Transfer Protocol as implemented by libmtp.
+It builds on Media::LibMTP::API to provide a higher-level, more
+Perl-friendly interface to libmtp.
 
 
 
